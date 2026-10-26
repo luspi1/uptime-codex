@@ -28,7 +28,13 @@ test("avatar previews before save, retries failure and persists throughout the a
   const input = page.getByLabel("Загрузить аватар");
   await input.setInputFiles({ name: "bad.txt", mimeType: "text/plain", buffer: Buffer.from("bad") });
   await expect(page.locator("form").getByRole("alert")).toContainText("PNG или JPEG");
-  await input.setInputFiles({ name: "avatar.png", mimeType: "image/png", buffer: png });
+  await expect(page.getByText("Файл не выбран", { exact: true })).toBeVisible();
+  const chooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Загрузить аватар" }).click();
+  const chooser = await chooserPromise;
+  expect(chooser.isMultiple()).toBe(false);
+  await chooser.setFiles({ name: "avatar.png", mimeType: "image/png", buffer: png });
+  await expect(page.getByText("avatar.png", { exact: true })).toBeVisible();
   const preview = page.locator("form").getByRole("img", { name: "Аватар пользователя" });
   await expect(preview).toHaveAttribute("src", /^blob:/);
   expect(uploads).toBe(0);
@@ -36,8 +42,10 @@ test("avatar previews before save, retries failure and persists throughout the a
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await expect(page.locator("form").getByRole("alert")).toContainText("Не удалось сохранить");
   await expect(preview).toHaveAttribute("src", /^blob:/);
+  await input.setInputFiles({ name: "avatar.png", mimeType: "image/png", buffer: png });
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Профиль сохранён.");
+  await expect(page.getByText("Файл не выбран", { exact: true })).toBeVisible();
   await expect(page.locator("header img")).toHaveAttribute("src", new RegExp(user.avatar_url + "$"));
   await expect(preview).toHaveAttribute("src", new RegExp(user.avatar_url + "$"));
   await expect(preview).toHaveJSProperty("naturalWidth", 1);

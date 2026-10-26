@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 import ProtectedDashboard from "../ProtectedDashboard";
 import { useAuth } from "../auth/AuthProvider";
 import { AuthError, type User } from "../auth/api";
-import Avatar from "../Avatar";
+import AvatarUpload from "../AvatarUpload";
 
 function ProfileForm({ user }: { user: User }) {
   const { saveProfile } = useAuth();
@@ -13,21 +13,10 @@ function ProfileForm({ user }: { user: User }) {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [avatar, setAvatar] = useState<File>();
-  const [preview, setPreview] = useState("");
-  const fileInput = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (!avatar) {
-      setPreview("");
-      return;
-    }
-    const url = URL.createObjectURL(avatar);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [avatar]);
   const trimmedName = name.trim();
   const validName = Array.from(trimmedName).length >= 1 && Array.from(trimmedName).length <= 100;
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
     setError("");
@@ -41,7 +30,6 @@ function ProfileForm({ user }: { user: User }) {
       await saveProfile(trimmedName, avatar);
       setName(trimmedName);
       setAvatar(undefined);
-      if (fileInput.current) fileInput.current.value = "";
       setSaved(true);
     } catch (failure: unknown) {
       setError(failure instanceof AuthError && failure.code === "avatar_too_large"
@@ -60,22 +48,12 @@ function ProfileForm({ user }: { user: User }) {
     <section className="card" aria-labelledby="profile-title">
       <h1 id="profile-title">Мой профиль</h1>
       <form onSubmit={handleSubmit}>
-        <Avatar user={user} preview={preview} large />
-        <label htmlFor="profile-avatar">Загрузить аватар</label>
-        <input ref={fileInput} id="profile-avatar" type="file" accept="image/png,image/jpeg" disabled={saving}
-          aria-describedby="avatar-hint" onChange={(event) => {
-            const file = event.target.files?.[0];
+        <AvatarUpload user={user} file={avatar} disabled={saving} onError={setError}
+          onChange={(file) => {
             setSaved(false);
             setError("");
-            if (file && (!["image/png", "image/jpeg"].includes(file.type) || file.size > 5 * 1024 * 1024)) {
-              setError("Выберите PNG или JPEG размером до 5 МБ.");
-              event.target.value = "";
-              setAvatar(undefined);
-              return;
-            }
             setAvatar(file);
           }} />
-        <p id="avatar-hint" className="hint">PNG или JPEG, до 5 МБ и 16 мегапикселей. Аватар обновится после сохранения.</p>
         <label htmlFor="profile-email">Email</label>
         <input id="profile-email" type="email" value={user.email} readOnly />
         <label htmlFor="profile-name">Имя пользователя</label>

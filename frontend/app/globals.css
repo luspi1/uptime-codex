@@ -76,12 +76,18 @@ input:focus-visible, .button:focus-visible, a:focus-visible {
 .button:disabled { opacity: .6; cursor: wait; }
 .button.secondary { background: #fff; color: #2266c2; }
 .button.secondary:hover { background: #f0f6ff; }
+.file-upload { min-width: 0; }
+.file-upload-button { gap: 8px; max-width: 100%; }
+.file-upload-button svg { flex-shrink: 0; }
+.file-upload-selection { overflow-wrap: anywhere; }
+.avatar-upload { display: flex; align-items: flex-start; gap: 18px; }
 .full-width { width: 100%; margin-top: 24px; }
 .switch-link { margin: 24px 0 0; text-align: center; color: #5e6b7d; }
 a { color: #2266c2; }
 .account-email { margin: 0 0 28px; font-size: 18px; font-weight: 700; overflow-wrap: anywhere; }
 
 @media (max-width: 480px) {
+  .avatar-upload { flex-direction: column; gap: 12px; }
   .card { padding: 26px 22px; }
   h1 { font-size: 25px; }
 }
