@@ -1,0 +1,57 @@
+.dashboard { min-height: 100vh; }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 32px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.brand { color: #2266c2; font-weight: 700; text-decoration: none; }
+.profile { position: relative; }
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.trigger::-webkit-details-marker { display: none; }
+.trigger:hover, .profile[open] .trigger { background: #f0f6ff; }
+.trigger:focus-visible { outline: 3px solid #87b8ff; outline-offset: 2px; }
+
+.chevron { color: #5e6b7d; }
+.profile[open] .chevron { transform: rotate(180deg); }
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 10;
+  width: min(300px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(21, 38, 66, .12);
+}
+
+.label { margin: 0 0 8px; color: #5e6b7d; font-size: 13px; }
+.email { margin: 0 0 20px; font-weight: 700; overflow-wrap: anywhere; }
+.name { margin: 0 0 8px; font-weight: 700; overflow-wrap: anywhere; }
+.dropdown button, .dropdown a { width: 100%; }
+.dropdown a { margin-bottom: 12px; }
+.content { max-width: 1200px; margin: 0 auto; padding: 40px 32px; }
+
+@media (max-width: 480px) {
+  .header { padding: 12px 16px; }
+  .content { padding: 28px 16px; }
+}

@@ -1,0 +1,12 @@
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/test-results/
+frontend/playwright-report/
+backend/bin/
+backend/uploads/avatars/
+.cache/
+*.exe
+.env
+.env.*
+!.env.example
