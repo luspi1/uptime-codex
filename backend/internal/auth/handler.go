@@ -12,6 +12,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"uptime-app/backend/internal/monitors"
+
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -66,6 +68,10 @@ func NewHandler(db *gorm.DB, config Config) http.Handler {
 	handler.mux.HandleFunc("GET /api/auth/me", handler.me)
 	handler.mux.HandleFunc("PATCH /api/auth/me", handler.updateProfile)
 	handler.mux.HandleFunc("GET /api/auth/avatars/{filename}", handler.avatar)
+	handler.mux.Handle("/api/monitors", monitors.NewHandler(db, func(w http.ResponseWriter, r *http.Request) (uint64, bool) {
+		user, ok := handler.currentUser(w, r)
+		return user.ID, ok
+	}))
 	return handler
 }
 

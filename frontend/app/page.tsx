@@ -1,5 +1,6 @@
 import ProtectedDashboard from "./ProtectedDashboard";
+import Monitors from "./Monitors";
 
 export default function HomePage() {
-  return <ProtectedDashboard>{null}</ProtectedDashboard>;
+  return <ProtectedDashboard><Monitors /></ProtectedDashboard>;
 }

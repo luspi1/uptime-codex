@@ -3,6 +3,8 @@ package auth
 import (
 	"time"
 
+	"uptime-app/backend/internal/monitors"
+
 	"gorm.io/gorm"
 )
 
@@ -25,5 +27,5 @@ type RefreshSession struct {
 }
 
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&User{}, &RefreshSession{})
+	return db.AutoMigrate(&User{}, &RefreshSession{}, &monitors.Monitor{})
 }

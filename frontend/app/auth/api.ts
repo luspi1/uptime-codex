@@ -30,7 +30,7 @@ type Credentials = {
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH";
-  body?: Credentials | { name: string } | FormData;
+  body?: Credentials | { name: string } | MonitorInput | FormData;
   token?: string | null;
 };
 
@@ -68,10 +68,10 @@ export function avatarSource(path: string): string {
   return `${API_URL}${path}`;
 }
 
-async function request(path: string, { method = "GET", body, token }: RequestOptions = {}): Promise<unknown> {
+async function request(path: string, { method = "GET", body, token }: RequestOptions = {}, prefix = "/api/auth"): Promise<unknown> {
   let response: Response;
   try {
-    response = await fetch(`${API_URL}/api/auth${path}`, {
+    response = await fetch(`${API_URL}${prefix}${path}`, {
       method,
       credentials: "include",
       headers: {
@@ -166,14 +166,41 @@ export async function updateProfile(name: string, avatar?: File): Promise<User> 
 }
 
 async function requestUser(options: RequestOptions = {}): Promise<User> {
+  return parseUser(await authorizedRequest("/me", options, "/api/auth"));
+}
+
+async function authorizedRequest(path: string, options: RequestOptions = {}, prefix = "/api"): Promise<unknown> {
   if (!accessToken) await refreshSession();
   try {
-    return parseUser(await request("/me", { ...options, token: accessToken }));
+    return await request(path, { ...options, token: accessToken }, prefix);
   } catch (error: unknown) {
     if (!(error instanceof AuthError) || error.status !== 401) throw error;
     await refreshSession();
-    return parseUser(await request("/me", { ...options, token: accessToken }));
+    return request(path, { ...options, token: accessToken }, prefix);
   }
+}
+
+export type MonitorInput = { url: string; interval_minutes: number };
+export type Monitor = MonitorInput & { id: number; created_at: string };
+
+function parseMonitor(value: unknown): Monitor {
+  if (!isRecord(value) || typeof value.id !== "number" || !Number.isInteger(value.id) || value.id < 1 ||
+    typeof value.url !== "string" || typeof value.interval_minutes !== "number" ||
+    !Number.isInteger(value.interval_minutes) || value.interval_minutes < 1 || value.interval_minutes > 1440 ||
+    typeof value.created_at !== "string") {
+    throw new AuthError("Сервер вернул некорректный ответ.", 0, "invalid_response");
+  }
+  return { id: value.id, url: value.url, interval_minutes: value.interval_minutes, created_at: value.created_at };
+}
+
+export async function listMonitors(): Promise<Monitor[]> {
+  const data = await authorizedRequest("/monitors");
+  if (!Array.isArray(data)) throw new AuthError("Сервер вернул некорректный ответ.", 0, "invalid_response");
+  return data.map(parseMonitor);
+}
+
+export async function createMonitor(input: MonitorInput): Promise<Monitor> {
+  return parseMonitor(await authorizedRequest("/monitors", { method: "POST", body: input }));
 }
 
 export async function endSession(): Promise<void> {
