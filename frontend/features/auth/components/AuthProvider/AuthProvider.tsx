@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { AuthError, authenticate, endSession, getCurrentUser, refreshSession, updateProfile, type AuthMode, type User } from "./api";
+import { AuthError, authenticate, endSession, getCurrentUser, refreshSession, updateProfile, type AuthMode, type User } from "../../api";
 
 export type AuthStatus = "loading" | "authenticated" | "anonymous" | "error";
 

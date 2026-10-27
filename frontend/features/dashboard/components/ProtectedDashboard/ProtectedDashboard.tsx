@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { useAuth } from "./auth/AuthProvider";
-import DashboardLayout from "./DashboardLayout";
+import { useAuth } from "@/features/auth/components/AuthProvider/AuthProvider";
+import DashboardLayout from "../DashboardLayout/DashboardLayout";
 
 export default function ProtectedDashboard({ children }: { children: ReactNode }) {
   const router = useRouter();

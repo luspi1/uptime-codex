@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Avatar from "./Avatar";
-import FileUpload from "./FileUpload";
-import type { User } from "./auth/api";
+import Avatar from "@/components/Avatar/Avatar";
+import FileUpload from "@/components/FileUpload/FileUpload";
+import { avatarSource, type User } from "@/features/auth/api";
 
 interface AvatarUploadProps {
   user: User;
@@ -28,7 +28,7 @@ export default function AvatarUpload({ user, file, disabled, onChange, onError }
 
   return (
     <div className="avatar-upload">
-      <Avatar user={user} preview={preview} large />
+      <Avatar name={user.name || user.email} src={preview || (user.avatar_url ? avatarSource(user.avatar_url) : "")} large />
       <FileUpload label="Загрузить аватар" files={file ? [file] : []}
         accept="image/png,image/jpeg" disabled={disabled}
         hint="PNG или JPEG, до 5 МБ и 16 мегапикселей. Аватар обновится после сохранения."

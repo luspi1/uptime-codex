@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { AuthError, createMonitor, listMonitors, type Monitor } from "./auth/api";
+import { AuthError, createMonitor, listMonitors, type Monitor } from "@/features/auth/api";
 import styles from "./Monitors.module.css";
 
 export default function Monitors() {

@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useAuth } from "./auth/AuthProvider";
-import type { User } from "./auth/api";
+import { useAuth } from "@/features/auth/components/AuthProvider/AuthProvider";
+import { avatarSource, type User } from "@/features/auth/api";
 import styles from "./DashboardLayout.module.css";
-import Avatar from "./Avatar";
+import Avatar from "@/components/Avatar/Avatar";
 
 export default function DashboardLayout({ user, children }: { user: User; children: ReactNode }) {
   const router = useRouter();
@@ -57,7 +57,7 @@ export default function DashboardLayout({ user, children }: { user: User; childr
             }}
           >
             <summary className={styles.trigger}>
-              <Avatar user={user} />
+              <Avatar name={user.name || user.email} src={user.avatar_url ? avatarSource(user.avatar_url) : ""} />
               <span>Профиль</span>
               <span className={styles.chevron} aria-hidden="true">▾</span>
             </summary>
