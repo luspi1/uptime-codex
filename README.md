@@ -73,7 +73,7 @@ Access JWT передаётся в `Authorization: Bearer <JWT>`; `GET /me` во
 
 Ошибки возвращаются как `{"error":{"code":"invalid_request","message":"..."}}`. Возможные коды: `invalid_request` (400), `email_taken` (409), `invalid_credentials` и `invalid_token` (401), `origin_not_allowed` (403), `internal_error` (500). Подтверждение email и восстановление пароля пока не реализованы.
 
-Планы и чеклисты находятся в [docs/auth-backend-plan.md](docs/auth-backend-plan.md) и [docs/auth-frontend-plan.md](docs/auth-frontend-plan.md).
+Планы и чеклисты находятся в [docs/plans/auth-backend-plan.md](docs/plans/auth-backend-plan.md) и [docs/plans/auth-frontend-plan.md](docs/plans/auth-frontend-plan.md).
 
 ## Аватар профиля
 
