@@ -38,7 +38,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", auth.NewHandler(db, config))
+	mux.Handle("/api/", auth.NewHandler(db, config))
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("Backend is ready.\n"))
 	})

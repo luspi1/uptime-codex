@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import ts from "typescript";
 
-const source = await readFile(new URL("../app/auth/api.ts", import.meta.url), "utf8");
+const source = await readFile(new URL("../features/auth/api.ts", import.meta.url), "utf8");
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
@@ -22,6 +22,50 @@ function json(status, body) {
 function session(token) {
   return { user: { id: 1, email: "user@example.com", name: "" }, access_token: token, token_type: "Bearer", expires_in: 900 };
 }
+
+test("monitor creation retries after token expiry and list uses the same API contract", async () => {
+  const originalFetch = globalThis.fetch;
+  const input = { url: "https://example.com", interval_minutes: 5 };
+  const item = { id: 1, ...input, created_at: "2026-10-26T12:00:00Z" };
+  let creates = 0;
+  globalThis.fetch = async (url, options) => {
+    if (url.endsWith("/login")) return json(200, session("expired"));
+    if (url.endsWith("/refresh")) return json(200, session("renewed"));
+    assert.ok(url.endsWith("/api/monitors"));
+    if (options.method === "POST") {
+      creates += 1;
+      assert.deepEqual(JSON.parse(options.body), input);
+      if (creates === 1) return json(401, { error: { code: "invalid_token", message: "Expired" } });
+      assert.equal(options.headers.Authorization, "Bearer renewed");
+      return json(201, item);
+    }
+    assert.equal(options.headers.Authorization, "Bearer renewed");
+    return json(200, [item]);
+  };
+  try {
+    const api = await freshApi();
+    await api.authenticate("login", "user@example.com", "password123");
+    assert.deepEqual(await api.createMonitor(input), item);
+    assert.deepEqual(await api.listMonitors(), [item]);
+    assert.equal(creates, 2);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("monitor API propagates validation errors and rejects invalid lists", async () => {
+  const originalFetch = globalThis.fetch;
+  let malformed = false;
+  globalThis.fetch = async (url) => {
+    if (url.endsWith("/refresh")) return json(200, session("access"));
+    if (malformed) return json(200, { monitors: [] });
+    return json(400, { error: { code: "invalid_request", message: "Invalid URL" } });
+  };
+  try {
+    const api = await freshApi();
+    await assert.rejects(api.createMonitor({ url: "bad", interval_minutes: 5 }), { status: 400, code: "invalid_request" });
+    malformed = true;
+    await assert.rejects(api.listMonitors(), { code: "invalid_response" });
+  } finally { globalThis.fetch = originalFetch; }
+});
 
 test("avatar upload preserves multipart body when access token expires", async () => {
   const originalFetch = globalThis.fetch;

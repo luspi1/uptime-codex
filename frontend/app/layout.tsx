@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { AuthProvider } from "./auth/AuthProvider";
+import { AuthProvider } from "@/features/auth/components/AuthProvider/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {

@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { useAuth } from "./AuthProvider";
-import type { AuthMode } from "./api";
+import { useAuth } from "../AuthProvider/AuthProvider";
+import type { AuthMode } from "../../api";
 
 const errorMessages: Record<string, string> = {
   email_taken: "Этот email уже зарегистрирован.",
