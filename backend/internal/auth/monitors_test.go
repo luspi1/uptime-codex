@@ -29,7 +29,8 @@ func TestMonitorsRequireAccessToken(t *testing.T) {
 	}
 }
 
-// Test against PostgreSQL with all fixtures rolled back.
+// Use a dedicated test database: Migrate changes its schema outside the fixture
+// transaction. Only fixture rows are rolled back.
 func TestMonitorCreationPersistenceAndOwnership(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {

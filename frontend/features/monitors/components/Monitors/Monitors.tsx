@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { AuthError, createMonitor, listMonitors, type Monitor } from "@/features/auth/api";
 import styles from "./Monitors.module.css";
 
+/** Loads the current user's monitors and adds new ones; render inside the protected dashboard. */
 export default function Monitors() {
   const router = useRouter();
   const dialog = useRef<HTMLDialogElement>(null);
+  // A ref blocks duplicate submissions before the saving state reaches the next render.
   const submitting = useRef(false);
   const [items, setItems] = useState<Monitor[]>([]);
   const [loading, setLoading] = useState(true);

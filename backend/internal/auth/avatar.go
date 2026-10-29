@@ -26,6 +26,7 @@ func (h *Handler) readProfile(w http.ResponseWriter, r *http.Request, currentNam
 		name, ok := readProfileName(w, r)
 		return name, "", ok
 	}
+	// Allow 64 KiB for multipart headers and the name beyond the 5 MiB file limit.
 	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarSize+(64<<10))
 	err := r.ParseMultipartForm(maxAvatarSize + (64 << 10))
 	if r.MultipartForm != nil {
@@ -67,6 +68,7 @@ func (h *Handler) readProfile(w http.ResponseWriter, r *http.Request, currentNam
 		writeInternalError(w)
 		return "", "", false
 	}
+	// Check dimensions before decoding pixels: compressed size does not bound memory use.
 	config, format, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil || (format != "png" && format != "jpeg") || config.Width <= 0 || config.Height <= 0 || int64(config.Width)*int64(config.Height) > 16_000_000 {
 		writeError(w, http.StatusBadRequest, "invalid_avatar", "Use a valid PNG or JPEG up to 16 megapixels")
@@ -105,6 +107,7 @@ func (h *Handler) readProfile(w http.ResponseWriter, r *http.Request, currentNam
 }
 
 func validAvatarFilename(filename string) bool {
+	// Accept only 16-byte IDs encoded as 32 hex digits plus .png, excluding path components.
 	if len(filename) != 36 || !strings.HasSuffix(filename, ".png") {
 		return false
 	}
@@ -112,6 +115,16 @@ func validAvatarFilename(filename string) bool {
 	return err == nil
 }
 
+// avatar serves an immutable public PNG.
+// @Summary Get avatar
+// @Tags profile
+// @Produce png
+// @Param filename path string true "32 hexadecimal characters followed by .png" example(0123456789abcdef0123456789abcdef.png)
+// @Success 200 {file} file
+// @Failure 403 {object} apiError "origin_not_allowed"
+// @Failure 404 {string} string "Avatar not found"
+// @Header 200 {string} Cache-Control "public, max-age=31536000, immutable"
+// @Router /api/auth/avatars/{filename} [get]
 func (h *Handler) avatar(w http.ResponseWriter, r *http.Request) {
 	filename := r.PathValue("filename")
 	if !validAvatarFilename(filename) {
@@ -120,6 +133,7 @@ func (h *Handler) avatar(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// Every upload gets a new filename, so cached URLs never need updated contents.
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	http.ServeFile(w, r, filepath.Join(h.config.AvatarDir, filename))
 }

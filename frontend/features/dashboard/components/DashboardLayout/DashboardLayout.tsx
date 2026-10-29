@@ -8,6 +8,7 @@ import { avatarSource, type User } from "@/features/auth/api";
 import styles from "./DashboardLayout.module.css";
 import Avatar from "@/components/Avatar/Avatar";
 
+/** Supplies dashboard navigation; the caller must verify the session before rendering children. */
 export default function DashboardLayout({ user, children }: { user: User; children: ReactNode }) {
   const router = useRouter();
   const { logout } = useAuth();

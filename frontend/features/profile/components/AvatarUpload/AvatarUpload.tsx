@@ -13,6 +13,7 @@ interface AvatarUploadProps {
   onError: (message: string) => void;
 }
 
+/** Previews a pending avatar without uploading it; the parent controls selection and saving. */
 export default function AvatarUpload({ user, file, disabled, onChange, onError }: AvatarUploadProps) {
   const [preview, setPreview] = useState("");
 

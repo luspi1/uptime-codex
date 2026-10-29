@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
+# Parse settings as data so quotes and shell expressions in passwords are never executed.
 function Read-Settings([string] $Path) {
     $settings = @{}
     if (Test-Path -LiteralPath $Path) {

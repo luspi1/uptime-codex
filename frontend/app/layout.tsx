@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   description: "Личный кабинет Uptime App",
 };
 
+/** Keeps a single session provider mounted across navigation so routes share auth state. */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru">

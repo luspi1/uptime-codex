@@ -17,6 +17,8 @@ type Config struct {
 	AvatarDir    string
 }
 
+// LoadConfig reads environment settings and rejects a missing database URL
+// or a JWT secret shorter than 32 bytes before the server starts.
 func LoadConfig() (Config, error) {
 	var config Config
 	config.AvatarDir = strings.TrimSpace(os.Getenv("AVATAR_DIR"))

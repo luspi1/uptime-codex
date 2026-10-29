@@ -6,12 +6,26 @@ import (
 	"net/http"
 	"time"
 
+	"uptime-app/backend/docs"
 	"uptime-app/backend/internal/auth"
+
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
+//go:generate go tool swag init -g main.go -d .,../../internal/auth,../../internal/monitors --parseInternal -o ../../docs
+//go:generate go run ../openapi
+
+// @title Uptime App API
+// @version 1.0
+// @description Authentication, profiles and website monitors. JSON errors use error.code and error.message. Browser requests must use the configured CLIENT_ORIGIN.
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter Bearer followed by a space and the access JWT.
 func main() {
 	config, err := auth.LoadConfig()
 	if err != nil {
@@ -37,12 +51,29 @@ func main() {
 		log.Fatalf("migrate database: %v", err)
 	}
 
+	log.Printf("Backend listening on http://localhost:%s", config.Port)
+	log.Fatal(http.ListenAndServe(":"+config.Port, newMux(db, config)))
+}
+
+func newMux(db *gorm.DB, config auth.Config) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/api/", auth.NewHandler(db, config))
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("Backend is ready.\n"))
+	mux.Handle("GET /swagger/", httpSwagger.Handler(httpSwagger.URL("/swagger/openapi.json")))
+	mux.HandleFunc("GET /swagger/openapi.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(docs.OpenAPI)
 	})
+	mux.HandleFunc("GET /{$}", readiness)
 
-	log.Printf("Backend listening on http://localhost:%s", config.Port)
-	log.Fatal(http.ListenAndServe(":"+config.Port, mux))
+	return mux
+}
+
+// readiness reports that the HTTP server is running.
+// @Summary Backend readiness
+// @Tags health
+// @Produce plain
+// @Success 200 {string} string "Backend is ready."
+// @Router / [get]
+func readiness(w http.ResponseWriter, r *http.Request) {
+	_, _ = w.Write([]byte("Backend is ready.\n"))
 }

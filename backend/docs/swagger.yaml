@@ -1,0 +1,429 @@
+basePath: /
+definitions:
+  auth.apiError:
+    properties:
+      error:
+        properties:
+          code:
+            type: string
+          message:
+            type: string
+        type: object
+    type: object
+  auth.authResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      token_type:
+        type: string
+      user:
+        $ref: '#/definitions/auth.userResponse'
+    type: object
+  auth.credentials:
+    properties:
+      email:
+        example: user@example.com
+        format: email
+        maxLength: 254
+        type: string
+      password:
+        example: password123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.userResponse:
+    properties:
+      avatar_url:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  monitors.Input:
+    properties:
+      interval_minutes:
+        example: 5
+        maximum: 1440
+        minimum: 1
+        type: integer
+      url:
+        example: https://example.com
+        maxLength: 2048
+        type: string
+    required:
+    - interval_minutes
+    - url
+    type: object
+  monitors.Monitor:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      interval_minutes:
+        type: integer
+      url:
+        type: string
+    type: object
+  monitors.apiError:
+    properties:
+      error:
+        properties:
+          code:
+            type: string
+          message:
+            type: string
+        type: object
+    type: object
+info:
+  contact: {}
+  description: Authentication, profiles and website monitors. JSON errors use error.code
+    and error.message. Browser requests must use the configured CLIENT_ORIGIN.
+  title: Uptime App API
+  version: "1.0"
+paths:
+  /:
+    get:
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Backend is ready.
+          schema:
+            type: string
+      summary: Backend readiness
+      tags:
+      - health
+  /api/auth/avatars/{filename}:
+    get:
+      parameters:
+      - description: 32 hexadecimal characters followed by .png
+        example: 0123456789abcdef0123456789abcdef.png
+        in: path
+        name: filename
+        required: true
+        type: string
+      produces:
+      - image/png
+      responses:
+        "200":
+          description: OK
+          headers:
+            Cache-Control:
+              description: public, max-age=31536000, immutable
+              type: string
+          schema:
+            type: file
+        "403":
+          description: origin_not_allowed
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "404":
+          description: Avatar not found
+          schema:
+            type: string
+      summary: Get avatar
+      tags:
+      - profile
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Valid email and password of 8 to 72 UTF-8 bytes; unknown fields
+          rejected
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.credentials'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            Set-Cookie:
+              description: HttpOnly refresh_token; Path=/api/auth; SameSite=Lax; Max-Age=2592000
+              type: string
+          schema:
+            $ref: '#/definitions/auth.authResponse'
+        "400":
+          description: invalid_request
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "401":
+          description: invalid_credentials
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "403":
+          description: origin_not_allowed
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "500":
+          description: internal_error
+          schema:
+            $ref: '#/definitions/auth.apiError'
+      summary: Log in
+      tags:
+      - auth
+  /api/auth/logout:
+    post:
+      parameters:
+      - description: refresh_token=<token>; logout also succeeds without a cookie
+        in: header
+        name: Cookie
+        type: string
+      responses:
+        "204":
+          description: Session revoked
+          headers:
+            Set-Cookie:
+              description: Clears refresh_token
+              type: string
+        "403":
+          description: origin_not_allowed
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "500":
+          description: internal_error
+          schema:
+            $ref: '#/definitions/auth.apiError'
+      summary: Log out
+      tags:
+      - auth
+  /api/auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.userResponse'
+        "401":
+          description: invalid_token
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "403":
+          description: origin_not_allowed
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "500":
+          description: internal_error
+          schema:
+            $ref: '#/definitions/auth.apiError'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - profile
+    patch:
+      consumes:
+      - application/json
+      - multipart/form-data
+      description: Send JSON with a required name, or multipart with exactly one PNG/JPEG
+        avatar (up to 5 MiB and 16 megapixels) and an optional name. Names contain
+        1 to 100 characters after trimming. Omitting the multipart name preserves
+        the current name.
+      parameters:
+      - description: Display name
+        in: formData
+        maxLength: 100
+        minLength: 1
+        name: name
+        type: string
+      - description: PNG or JPEG, up to 5 MiB and 16 megapixels
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.userResponse'
+        "400":
+          description: invalid_request or invalid_avatar
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "401":
+          description: invalid_token
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "403":
+          description: origin_not_allowed
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "413":
+          description: avatar_too_large
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "500":
+          description: internal_error
+          schema:
+            $ref: '#/definitions/auth.apiError'
+      security:
+      - BearerAuth: []
+      summary: Update current profile
+      tags:
+      - profile
+  /api/auth/refresh:
+    post:
+      parameters:
+      - description: refresh_token=<token>; browsers send it with credentials included
+        in: header
+        name: Cookie
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            Set-Cookie:
+              description: HttpOnly refresh_token; Path=/api/auth; SameSite=Lax; Max-Age=2592000
+              type: string
+          schema:
+            $ref: '#/definitions/auth.authResponse'
+        "401":
+          description: invalid_token
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "403":
+          description: origin_not_allowed
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "500":
+          description: internal_error
+          schema:
+            $ref: '#/definitions/auth.apiError'
+      summary: Rotate refresh token
+      tags:
+      - auth
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Valid email and password of 8 to 72 UTF-8 bytes; unknown fields
+          rejected
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.credentials'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          headers:
+            Set-Cookie:
+              description: HttpOnly refresh_token; Path=/api/auth; SameSite=Lax; Max-Age=2592000
+              type: string
+          schema:
+            $ref: '#/definitions/auth.authResponse'
+        "400":
+          description: invalid_request
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "403":
+          description: origin_not_allowed
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "409":
+          description: email_taken
+          schema:
+            $ref: '#/definitions/auth.apiError'
+        "500":
+          description: internal_error
+          schema:
+            $ref: '#/definitions/auth.apiError'
+      summary: Register user
+      tags:
+      - auth
+  /api/monitors:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/monitors.Monitor'
+            type: array
+        "401":
+          description: invalid_token
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "403":
+          description: origin_not_allowed
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "500":
+          description: internal_error
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+      security:
+      - BearerAuth: []
+      summary: List monitors
+      tags:
+      - monitors
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: HTTP/HTTPS URL without credentials or fragment; interval 1 to
+          1440 minutes; unknown fields rejected
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/monitors.Input'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/monitors.Monitor'
+        "400":
+          description: invalid_request
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "401":
+          description: invalid_token
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "403":
+          description: origin_not_allowed
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "500":
+          description: internal_error
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+      security:
+      - BearerAuth: []
+      summary: Create monitor
+      tags:
+      - monitors
+securityDefinitions:
+  BearerAuth:
+    description: Enter Bearer followed by a space and the access JWT.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

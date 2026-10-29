@@ -1,3 +1,4 @@
+/** Uses the first Unicode code point of name as a decorative fallback when src is absent. */
 export default function Avatar({ name, src, large = false }: { name: string; src?: string; large?: boolean }) {
   return src
     ? <img className={`user-avatar${large ? " large" : ""}`} src={src} alt="Аватар пользователя" width={large ? 80 : 32} height={large ? 80 : 32} />

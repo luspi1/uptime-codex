@@ -17,6 +17,7 @@ type User struct {
 	CreatedAt    time.Time
 }
 
+// RefreshSession stores only a token hash so database contents cannot be used as refresh tokens.
 type RefreshSession struct {
 	ID        uint64    `gorm:"primaryKey;autoIncrement"`
 	UserID    uint64    `gorm:"not null;index"`
@@ -26,6 +27,8 @@ type RefreshSession struct {
 	CreatedAt time.Time
 }
 
+// Migrate prepares the auth and monitor tables together because both use user IDs.
+// It changes the schema of the supplied database, including when called by tests.
 func Migrate(db *gorm.DB) error {
 	return db.AutoMigrate(&User{}, &RefreshSession{}, &monitors.Monitor{})
 }

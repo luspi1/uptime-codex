@@ -14,6 +14,7 @@ const errorMessages: Record<string, string> = {
   network_error: "Не удалось связаться с сервером. Повторите попытку позже.",
 };
 
+/** Uses the shared session for login or registration and redirects authenticated users home. */
 export default function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const { status, error: sessionError, retry, login } = useAuth();
@@ -30,6 +31,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    // Match the backend's bcrypt byte limit, including passwords with multibyte characters.
     const passwordBytes = new TextEncoder().encode(password).length;
     if (passwordBytes < 8 || passwordBytes > 72) {
       setError("Длина пароля должна быть от 8 до 72 байт.");

@@ -12,6 +12,7 @@ export interface FileUploadProps {
   hint?: string;
 }
 
+/** Delegates file state and validation to the caller; cancelling the picker preserves selection. */
 export default function FileUpload({ label, files, onFilesChange, accept, multiple = false, disabled = false, hint }: FileUploadProps) {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
@@ -23,6 +24,7 @@ export default function FileUpload({ label, files, onFilesChange, accept, multip
         aria-describedby={hint ? `${id}-hint` : undefined}
         onChange={(event) => {
           const selected = Array.from(event.currentTarget.files ?? []);
+          // Reset so choosing the same file again still fires change after validation fails.
           event.currentTarget.value = "";
           if (selected.length) onFilesChange(selected);
         }} />

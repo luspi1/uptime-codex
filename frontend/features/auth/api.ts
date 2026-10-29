@@ -34,9 +34,11 @@ type RequestOptions = {
   token?: string | null;
 };
 
+// Keep the access token in memory; reloads restore the session via the HttpOnly cookie.
 let accessToken: string | null = null;
 let refreshPromise: Promise<User> | null = null;
 
+/** Preserves API status and code for UI decisions; status 0 also covers local response validation. */
 export class AuthError extends Error {
   status: number;
   code: string;
@@ -64,6 +66,7 @@ function parseUser(value: unknown): User {
     ...(typeof value.avatar_url === "string" ? { avatar_url: value.avatar_url } : {}) };
 }
 
+/** Resolves a backend-relative avatar path against the API origin. */
 export function avatarSource(path: string): string {
   return `${API_URL}${path}`;
 }
@@ -128,6 +131,7 @@ function saveSession(data: unknown): User {
   return user;
 }
 
+/** Starts a session and returns its user after validating and retaining the access token. */
 export async function authenticate(mode: AuthMode, email: string, password: string): Promise<User> {
   const data = await request(mode === "register" ? "/register" : "/login", {
     method: "POST",
@@ -136,8 +140,10 @@ export async function authenticate(mode: AuthMode, email: string, password: stri
   return saveSession(data);
 }
 
+/** Restores the session using the refresh cookie; concurrent callers share one rotation. */
 export function refreshSession(): Promise<User> {
   if (!refreshPromise) {
+    // The server rotates refresh tokens, so parallel refreshes could reuse an invalidated cookie.
     refreshPromise = request("/refresh", { method: "POST" })
       .then(saveSession)
       .catch((error: unknown) => {
@@ -151,10 +157,12 @@ export function refreshSession(): Promise<User> {
   return refreshPromise;
 }
 
+/** Fetches the current profile, refreshing the session if the access token is missing or rejected. */
 export async function getCurrentUser(): Promise<User> {
   return requestUser();
 }
 
+/** Saves the profile; with an avatar, an empty name is omitted to preserve the stored name. */
 export async function updateProfile(name: string, avatar?: File): Promise<User> {
   if (avatar) {
     const body = new FormData();
@@ -176,6 +184,7 @@ async function authorizedRequest(path: string, options: RequestOptions = {}, pre
   } catch (error: unknown) {
     if (!(error instanceof AuthError) || error.status !== 401) throw error;
     await refreshSession();
+    // Retry once so a second 401 reaches the UI instead of causing a refresh loop.
     return request(path, { ...options, token: accessToken }, prefix);
   }
 }
@@ -193,16 +202,19 @@ function parseMonitor(value: unknown): Monitor {
   return { id: value.id, url: value.url, interval_minutes: value.interval_minutes, created_at: value.created_at };
 }
 
+/** Returns validated monitors for the current session, refreshing authorization if needed. */
 export async function listMonitors(): Promise<Monitor[]> {
   const data = await authorizedRequest("/monitors");
   if (!Array.isArray(data)) throw new AuthError("Сервер вернул некорректный ответ.", 0, "invalid_response");
   return data.map(parseMonitor);
 }
 
+/** Creates a monitor for the current user; rejects API failures and invalid response data. */
 export async function createMonitor(input: MonitorInput): Promise<Monitor> {
   return parseMonitor(await authorizedRequest("/monitors", { method: "POST", body: input }));
 }
 
+/** Revokes the refresh session before clearing local access; failures leave it available for retry. */
 export async function endSession(): Promise<void> {
   await request("/logout", { method: "POST" });
   accessToken = null;

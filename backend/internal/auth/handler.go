@@ -31,8 +31,8 @@ type Handler struct {
 }
 
 type credentials struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" binding:"required" format:"email" maxLength:"254" example:"user@example.com"`
+	Password string `json:"password" binding:"required" example:"password123"`
 }
 
 type userResponse struct {
@@ -56,6 +56,8 @@ type apiError struct {
 	} `json:"error"`
 }
 
+// NewHandler wires auth, profile, avatar and monitor routes behind a shared origin
+// policy. Protected routes require a bearer token; avatar URLs are public.
 func NewHandler(db *gorm.DB, config Config) http.Handler {
 	if config.AvatarDir == "" {
 		config.AvatarDir = "uploads/avatars"
@@ -75,6 +77,8 @@ func NewHandler(db *gorm.DB, config Config) http.Handler {
 	return handler
 }
 
+// ServeHTTP rejects disallowed browser origins before dispatching requests,
+// including cookie-based session changes, and handles CORS preflight requests.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
 	if origin != "" {
@@ -95,6 +99,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
+// register manages the authentication session.
+// @Summary Register user
+// @Tags auth
+// @Produce json
+// @Accept json
+// @Param body body credentials true "Valid email and password of 8 to 72 UTF-8 bytes; unknown fields rejected"
+// @Failure 400 {object} apiError "invalid_request"
+// @Success 201 {object} authResponse
+// @Header 201 {string} Set-Cookie "HttpOnly refresh_token; Path=/api/auth; SameSite=Lax; Max-Age=2592000"
+// @Failure 409 {object} apiError "email_taken"
+// @Failure 403 {object} apiError "origin_not_allowed"
+// @Failure 500 {object} apiError "internal_error"
+// @Router /api/auth/register [post]
 func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 	input, ok := readCredentials(w, r)
 	if !ok {
@@ -141,6 +158,19 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 	writeAuthResponse(w, http.StatusCreated, user, access)
 }
 
+// login manages the authentication session.
+// @Summary Log in
+// @Tags auth
+// @Produce json
+// @Accept json
+// @Param body body credentials true "Valid email and password of 8 to 72 UTF-8 bytes; unknown fields rejected"
+// @Failure 400 {object} apiError "invalid_request"
+// @Success 200 {object} authResponse
+// @Header 200 {string} Set-Cookie "HttpOnly refresh_token; Path=/api/auth; SameSite=Lax; Max-Age=2592000"
+// @Failure 401 {object} apiError "invalid_credentials"
+// @Failure 403 {object} apiError "origin_not_allowed"
+// @Failure 500 {object} apiError "internal_error"
+// @Router /api/auth/login [post]
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	input, ok := readCredentials(w, r)
 	if !ok {
@@ -183,6 +213,17 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	writeAuthResponse(w, http.StatusOK, user, access)
 }
 
+// refresh manages the authentication session.
+// @Summary Rotate refresh token
+// @Tags auth
+// @Produce json
+// @Param Cookie header string true "refresh_token=<token>; browsers send it with credentials included"
+// @Success 200 {object} authResponse
+// @Header 200 {string} Set-Cookie "HttpOnly refresh_token; Path=/api/auth; SameSite=Lax; Max-Age=2592000"
+// @Failure 401 {object} apiError "invalid_token"
+// @Failure 403 {object} apiError "origin_not_allowed"
+// @Failure 500 {object} apiError "internal_error"
+// @Router /api/auth/refresh [post]
 func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(refreshCookieName)
 	if err != nil || cookie.Value == "" {
@@ -199,6 +240,7 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 	var access string
 	err = h.db.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
 		var session RefreshSession
+		// Serialize rotation so concurrent requests cannot reuse the same refresh token.
 		result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Where("token_hash = ?", hashRefreshToken(cookie.Value)).First(&session)
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -241,6 +283,15 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 	writeAuthResponse(w, http.StatusOK, user, access)
 }
 
+// logout revokes the refresh session if present.
+// @Summary Log out
+// @Tags auth
+// @Param Cookie header string false "refresh_token=<token>; logout also succeeds without a cookie"
+// @Success 204 "Session revoked"
+// @Header 204 {string} Set-Cookie "Clears refresh_token"
+// @Failure 403 {object} apiError "origin_not_allowed"
+// @Failure 500 {object} apiError "internal_error"
+// @Router /api/auth/logout [post]
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(refreshCookieName)
 	if err == nil && cookie.Value != "" {
@@ -256,6 +307,16 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// me returns the authenticated user.
+// @Summary Get current user
+// @Tags profile
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} userResponse
+// @Failure 401 {object} apiError "invalid_token"
+// @Failure 403 {object} apiError "origin_not_allowed"
+// @Failure 500 {object} apiError "internal_error"
+// @Router /api/auth/me [get]
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	user, ok := h.currentUser(w, r)
 	if !ok {
@@ -288,6 +349,22 @@ func (h *Handler) currentUser(w http.ResponseWriter, r *http.Request) (User, boo
 	return user, true
 }
 
+// updateProfile saves the name and optional avatar.
+// @Summary Update current profile
+// @Description Send JSON with a required name, or multipart with exactly one PNG/JPEG avatar (up to 5 MiB and 16 megapixels) and an optional name. Names contain 1 to 100 characters after trimming. Omitting the multipart name preserves the current name.
+// @Tags profile
+// @Accept json,mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param name formData string false "Display name" minLength(1) maxLength(100)
+// @Param avatar formData file true "PNG or JPEG, up to 5 MiB and 16 megapixels"
+// @Success 200 {object} userResponse
+// @Failure 400 {object} apiError "invalid_request or invalid_avatar"
+// @Failure 401 {object} apiError "invalid_token"
+// @Failure 413 {object} apiError "avatar_too_large"
+// @Failure 403 {object} apiError "origin_not_allowed"
+// @Failure 500 {object} apiError "internal_error"
+// @Router /api/auth/me [patch]
 func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 	user, ok := h.currentUser(w, r)
 	if !ok {
@@ -299,6 +376,7 @@ func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	committed := false
 	if avatar != "" {
+		// File writes are outside the database transaction, so failed updates need cleanup.
 		defer func() {
 			if !committed {
 				_ = os.Remove(filepath.Join(h.config.AvatarDir, avatar))
@@ -320,6 +398,7 @@ func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	committed = true
+	// Keep the old file available until the profile points to the replacement.
 	if avatar != "" && strings.HasPrefix(oldAvatar, avatarPrefix) {
 		filename := strings.TrimPrefix(oldAvatar, avatarPrefix)
 		if validAvatarFilename(filename) {
@@ -373,6 +452,7 @@ func readCredentials(w http.ResponseWriter, r *http.Request) (credentials, bool)
 	}
 	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
 	address, err := mail.ParseAddress(input.Email)
+	// bcrypt limits passwords to 72 bytes, so count UTF-8 bytes rather than characters.
 	if err != nil || address.Address != input.Email || len(input.Email) > 254 ||
 		len(input.Password) < 8 || len(input.Password) > 72 {
 		writeError(w, http.StatusBadRequest, "invalid_request", "Valid email and password of 8 to 72 bytes are required")

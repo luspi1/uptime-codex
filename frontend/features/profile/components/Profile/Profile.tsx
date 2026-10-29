@@ -21,6 +21,7 @@ function ProfileForm({ user }: { user: User }) {
     if (saving) return;
     setError("");
     setSaved(false);
+    // Accounts start with an empty name; allow an avatar-only update without requiring a rename.
     if (!validName && !(avatar && trimmedName === user.name)) {
       setError("Имя должно содержать от 1 до 100 символов.");
       return;
@@ -74,6 +75,7 @@ function ProfileForm({ user }: { user: User }) {
   );
 }
 
+/** Guards profile editing and resets form state when the authenticated user ID changes. */
 export default function Profile() {
   const { user } = useAuth();
   return <ProtectedDashboard>{user && <ProfileForm key={user.id} user={user} />}</ProtectedDashboard>;

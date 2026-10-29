@@ -44,6 +44,27 @@ docker compose up -d postgres
 
 Для HTTPS задайте `COOKIE_SECURE=true`. В рабочем окружении `JWT_SECRET` должен быть случайным секретом, а `CLIENT_ORIGIN` — точным адресом браузерного клиента.
 
+## Документация API
+
+Swagger UI доступен после запуска backend по адресу <http://localhost:8080/swagger/index.html>.
+Контракт OpenAPI 3.0: [backend/docs/openapi.json](backend/docs/openapi.json), также доступен по HTTP на `/swagger/openapi.json`.
+Аннотации Swaggo описывают все 10 операций, параметры, ответы, ошибки и авторизацию. Промежуточные файлы Swagger 2.0 находятся в `backend/docs/swagger.json` и `swagger.yaml`.
+
+После изменения обработчиков или аннотаций обновите контракт из каталога `backend/`:
+
+```powershell
+go generate ./cmd/server
+.\generate-redoc.cmd
+go test ./...
+go build ./cmd/server
+```
+
+Версия Swaggo закреплена в `go.mod`; отдельная установка CLI не нужна. Генерация не требует PostgreSQL. Сначала Swaggo создаёт Swagger 2.0, затем `cmd/openapi` преобразует его в OpenAPI 3.0, добавляет отдельную JSON-схему обновления профиля, cookie-параметры и HTTP Bearer JWT, проверяет корректность контракта. При изменении форматов профиля обновляйте также преобразователь.
+
+ReDoc: [backend/docs/redoc.html](backend/docs/redoc.html). Файл содержит контракт и скрипты ReDoc, его можно открыть в браузере без запуска backend. Для повторной генерации из существующего `docs/openapi.json` выполните `.\generate-redoc.cmd` из `backend/` (или `backend\generate-redoc.cmd` из корня). Команда использует закреплённую версию Redocly CLI 2.72.0 через `npx.cmd`; нужны Node.js 22.12+ или 20.19–20.x, npm 10+ и доступ к сети для загрузки инструментов и сборки ReDoc.
+
+В Swagger UI для защищённых операций нажмите Authorize и вставьте access JWT. Refresh и logout используют HTTP-only cookie, полученную при регистрации или входе в том же браузере.
+
 ## API авторизации
 
 Все маршруты начинаются с `/api/auth`. Регистрация и вход принимают JSON `{"email":"user@example.com","password":"password123"}`. Email приводится к нижнему регистру; пароль должен содержать от 8 до 72 байт.
@@ -73,7 +94,7 @@ Access JWT передаётся в `Authorization: Bearer <JWT>`; `GET /me` во
 
 Ошибки возвращаются как `{"error":{"code":"invalid_request","message":"..."}}`. Возможные коды: `invalid_request` (400), `email_taken` (409), `invalid_credentials` и `invalid_token` (401), `origin_not_allowed` (403), `internal_error` (500). Подтверждение email и восстановление пароля пока не реализованы.
 
-Планы и чеклисты находятся в [docs/plans/auth-backend-plan.md](docs/plans/auth-backend-plan.md) и [docs/plans/auth-frontend-plan.md](docs/plans/auth-frontend-plan.md).
+Планы и чеклисты находятся в [docs/plans/auth-backend-plan.md](docs/tmp/plans/auth-backend-plan.md) и [docs/plans/auth-frontend-plan.md](docs/tmp/plans/auth-frontend-plan.md).
 
 ## Аватар профиля
 

@@ -1,0 +1,648 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Authentication, profiles and website monitors. JSON errors use error.code and error.message. Browser requests must use the configured CLIENT_ORIGIN.",
+        "title": "Uptime App API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/": {
+            "get": {
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Backend readiness",
+                "responses": {
+                    "200": {
+                        "description": "Backend is ready.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/avatars/{filename}": {
+            "get": {
+                "produces": [
+                    "image/png"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Get avatar",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "0123456789abcdef0123456789abcdef.png",
+                        "description": "32 hexadecimal characters followed by .png",
+                        "name": "filename",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        },
+                        "headers": {
+                            "Cache-Control": {
+                                "type": "string",
+                                "description": "public, max-age=31536000, immutable"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "origin_not_allowed",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "404": {
+                        "description": "Avatar not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/login": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Log in",
+                "parameters": [
+                    {
+                        "description": "Valid email and password of 8 to 72 UTF-8 bytes; unknown fields rejected",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.credentials"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.authResponse"
+                        },
+                        "headers": {
+                            "Set-Cookie": {
+                                "type": "string",
+                                "description": "HttpOnly refresh_token; Path=/api/auth; SameSite=Lax; Max-Age=2592000"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_credentials",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "403": {
+                        "description": "origin_not_allowed",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Log out",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "refresh_token=\u003ctoken\u003e; logout also succeeds without a cookie",
+                        "name": "Cookie",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Session revoked",
+                        "headers": {
+                            "Set-Cookie": {
+                                "type": "string",
+                                "description": "Clears refresh_token"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "origin_not_allowed",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Get current user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.userResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "403": {
+                        "description": "origin_not_allowed",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Send JSON with a required name, or multipart with exactly one PNG/JPEG avatar (up to 5 MiB and 16 megapixels) and an optional name. Names contain 1 to 100 characters after trimming. Omitting the multipart name preserves the current name.",
+                "consumes": [
+                    "application/json",
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Update current profile",
+                "parameters": [
+                    {
+                        "maxLength": 100,
+                        "minLength": 1,
+                        "type": "string",
+                        "description": "Display name",
+                        "name": "name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "PNG or JPEG, up to 5 MiB and 16 megapixels",
+                        "name": "avatar",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.userResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request or invalid_avatar",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "403": {
+                        "description": "origin_not_allowed",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "413": {
+                        "description": "avatar_too_large",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/refresh": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Rotate refresh token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "refresh_token=\u003ctoken\u003e; browsers send it with credentials included",
+                        "name": "Cookie",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.authResponse"
+                        },
+                        "headers": {
+                            "Set-Cookie": {
+                                "type": "string",
+                                "description": "HttpOnly refresh_token; Path=/api/auth; SameSite=Lax; Max-Age=2592000"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "403": {
+                        "description": "origin_not_allowed",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/register": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Register user",
+                "parameters": [
+                    {
+                        "description": "Valid email and password of 8 to 72 UTF-8 bytes; unknown fields rejected",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.credentials"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/auth.authResponse"
+                        },
+                        "headers": {
+                            "Set-Cookie": {
+                                "type": "string",
+                                "description": "HttpOnly refresh_token; Path=/api/auth; SameSite=Lax; Max-Age=2592000"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "403": {
+                        "description": "origin_not_allowed",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "409": {
+                        "description": "email_taken",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/auth.apiError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/monitors": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "List monitors",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/monitors.Monitor"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "403": {
+                        "description": "origin_not_allowed",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Create monitor",
+                "parameters": [
+                    {
+                        "description": "HTTP/HTTPS URL without credentials or fragment; interval 1 to 1440 minutes; unknown fields rejected",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/monitors.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.Monitor"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "403": {
+                        "description": "origin_not_allowed",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "auth.apiError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string"
+                        },
+                        "message": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "auth.authResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "token_type": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/auth.userResponse"
+                }
+            }
+        },
+        "auth.credentials": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "example": "user@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "password123"
+                }
+            }
+        },
+        "auth.userResponse": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "monitors.Input": {
+            "type": "object",
+            "required": [
+                "interval_minutes",
+                "url"
+            ],
+            "properties": {
+                "interval_minutes": {
+                    "type": "integer",
+                    "maximum": 1440,
+                    "minimum": 1,
+                    "example": 5
+                },
+                "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "example": "https://example.com"
+                }
+            }
+        },
+        "monitors.Monitor": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "interval_minutes": {
+                    "type": "integer"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "monitors.apiError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string"
+                        },
+                        "message": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Enter Bearer followed by a space and the access JWT.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

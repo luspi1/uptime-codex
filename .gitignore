@@ -12,3 +12,4 @@ backend/uploads/avatars/
 .env
 .env.*
 !.env.example
+/docs/tmp/

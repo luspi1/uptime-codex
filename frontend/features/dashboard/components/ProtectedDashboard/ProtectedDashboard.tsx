@@ -5,6 +5,7 @@ import { useEffect, type ReactNode } from "react";
 import { useAuth } from "@/features/auth/components/AuthProvider/AuthProvider";
 import DashboardLayout from "../DashboardLayout/DashboardLayout";
 
+/** Withholds children until session restoration succeeds; network errors offer a retry. */
 export default function ProtectedDashboard({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user, status, error, retry } = useAuth();

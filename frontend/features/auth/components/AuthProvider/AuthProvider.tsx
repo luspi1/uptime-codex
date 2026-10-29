@@ -17,6 +17,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Shares session restoration and profile updates across routes, keeping network errors retryable. */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
@@ -77,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Provides shared session actions and state; requires an ancestor AuthProvider. */
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within AuthProvider");
