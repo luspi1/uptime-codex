@@ -29,7 +29,7 @@ type Credentials = {
 };
 
 type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: Credentials | { name: string } | MonitorInput | FormData;
   token?: string | null;
 };
@@ -212,6 +212,16 @@ export async function listMonitors(): Promise<Monitor[]> {
 /** Creates a monitor for the current user; rejects API failures and invalid response data. */
 export async function createMonitor(input: MonitorInput): Promise<Monitor> {
   return parseMonitor(await authorizedRequest("/monitors", { method: "POST", body: input }));
+}
+
+/** Replaces a monitor's editable settings for the current user. */
+export async function updateMonitor(id: number, input: MonitorInput): Promise<Monitor> {
+  return parseMonitor(await authorizedRequest(`/monitors/${id}`, { method: "PUT", body: input }));
+}
+
+/** Permanently deletes a monitor for the current user. */
+export async function deleteMonitor(id: number): Promise<void> {
+  await authorizedRequest(`/monitors/${id}`, { method: "DELETE" });
 }
 
 /** Revokes the refresh session before clearing local access; failures leave it available for retry. */

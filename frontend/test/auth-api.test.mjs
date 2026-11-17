@@ -67,6 +67,40 @@ test("monitor API propagates validation errors and rejects invalid lists", async
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test("monitor update and deletion refresh authorization and preserve errors", async () => {
+  const originalFetch = globalThis.fetch;
+  const input = { url: "https://updated.example.com", interval_minutes: 12 };
+  const item = { id: 7, ...input, created_at: "2026-10-26T12:00:00Z" };
+  let updates = 0;
+  let deleted = false;
+  globalThis.fetch = async (url, options) => {
+    if (url.endsWith("/login")) return json(200, session("expired"));
+    if (url.endsWith("/refresh")) return json(200, session("renewed"));
+    assert.ok(url.endsWith("/api/monitors/7"));
+    if (options.method === "PUT") {
+      updates += 1;
+      assert.deepEqual(JSON.parse(options.body), input);
+      if (updates === 1) return json(401, { error: { code: "invalid_token", message: "Expired" } });
+      assert.equal(options.headers.Authorization, "Bearer renewed");
+      return json(200, item);
+    }
+    assert.equal(options.method, "DELETE");
+    assert.equal(options.body, undefined);
+    assert.equal(options.headers.Authorization, "Bearer renewed");
+    if (deleted) return json(404, { error: { code: "monitor_not_found", message: "Monitor not found" } });
+    deleted = true;
+    return new Response(null, { status: 204 });
+  };
+  try {
+    const api = await freshApi();
+    await api.authenticate("login", "user@example.com", "password123");
+    assert.deepEqual(await api.updateMonitor(7, input), item);
+    assert.equal(updates, 2);
+    assert.equal(await api.deleteMonitor(7), undefined);
+    await assert.rejects(api.deleteMonitor(7), { status: 404, code: "monitor_not_found" });
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test("avatar upload preserves multipart body when access token expires", async () => {
   const originalFetch = globalThis.fetch;
   const avatar = new File(["png bytes"], "avatar.png", { type: "image/png" });

@@ -420,6 +420,92 @@ paths:
       summary: Create monitor
       tags:
       - monitors
+  /api/monitors/{id}:
+    delete:
+      parameters:
+      - description: Positive monitor ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Monitor deleted; no response body
+        "400":
+          description: invalid_request
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "401":
+          description: invalid_token
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "403":
+          description: origin_not_allowed
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "404":
+          description: monitor_not_found
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "500":
+          description: internal_error
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+      security:
+      - BearerAuth: []
+      summary: Delete monitor
+      tags:
+      - monitors
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Positive monitor ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Both fields required; same validation as creation; unknown fields
+          rejected
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/monitors.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/monitors.Monitor'
+        "400":
+          description: invalid_request
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "401":
+          description: invalid_token
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "403":
+          description: origin_not_allowed
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "404":
+          description: monitor_not_found
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+        "500":
+          description: internal_error
+          schema:
+            $ref: '#/definitions/monitors.apiError'
+      security:
+      - BearerAuth: []
+      summary: Update monitor
+      tags:
+      - monitors
 securityDefinitions:
   BearerAuth:
     description: Enter Bearer followed by a space and the access JWT.

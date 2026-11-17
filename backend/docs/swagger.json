@@ -511,6 +511,139 @@
                     }
                 }
             }
+        },
+        "/api/monitors/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Update monitor",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Positive monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Both fields required; same validation as creation; unknown fields rejected",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/monitors.Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.Monitor"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_request",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "403": {
+                        "description": "origin_not_allowed",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "404": {
+                        "description": "monitor_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "monitors"
+                ],
+                "summary": "Delete monitor",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Positive monitor ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Monitor deleted; no response body"
+                    },
+                    "400": {
+                        "description": "invalid_request",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "403": {
+                        "description": "origin_not_allowed",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "404": {
+                        "description": "monitor_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/monitors.apiError"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {

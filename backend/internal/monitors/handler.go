@@ -5,10 +5,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Monitor struct {
@@ -28,13 +30,15 @@ type Input struct {
 // This lets monitor routes share auth without depending on the auth package.
 type Authenticate func(http.ResponseWriter, *http.Request) (uint64, bool)
 
-// NewHandler lists and creates monitors scoped to the authenticated user.
+// NewHandler manages monitors scoped to the authenticated user.
 // The authenticate callback must write the response when authentication fails.
 func NewHandler(db *gorm.DB, authenticate Authenticate) http.Handler {
 	mux := http.NewServeMux()
 	h := &handler{db: db, authenticate: authenticate}
 	mux.HandleFunc("GET /api/monitors", h.list)
 	mux.HandleFunc("POST /api/monitors", h.create)
+	mux.HandleFunc("PUT /api/monitors/{id}", h.update)
+	mux.HandleFunc("DELETE /api/monitors/{id}", h.delete)
 	return mux
 }
 
@@ -95,6 +99,110 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, item)
+}
+
+// update replaces the editable settings without changing ownership or creation time.
+// @Summary Update monitor
+// @Tags monitors
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path integer true "Positive monitor ID"
+// @Param body body Input true "Both fields required; same validation as creation; unknown fields rejected"
+// @Success 200 {object} Monitor
+// @Failure 400 {object} apiError "invalid_request"
+// @Failure 401 {object} apiError "invalid_token"
+// @Failure 403 {object} apiError "origin_not_allowed"
+// @Failure 404 {object} apiError "monitor_not_found"
+// @Failure 500 {object} apiError "internal_error"
+// @Router /api/monitors/{id} [put]
+func (h *handler) update(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.authenticate(w, r)
+	if !ok {
+		return
+	}
+	id, ok := readID(w, r)
+	if !ok {
+		return
+	}
+	input, ok := readInput(w, r)
+	if !ok {
+		return
+	}
+	var item Monitor
+	result := h.db.WithContext(r.Context()).Model(&item).Clauses(clause.Returning{}).
+		Where("id = ? AND user_id = ?", id, userID).
+		Updates(map[string]any{"url": input.URL, "interval_minutes": input.IntervalMinutes})
+	if !mutationSucceeded(w, result) {
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+// delete permanently removes a monitor belonging to the current user.
+// @Summary Delete monitor
+// @Tags monitors
+// @Produce json
+// @Security BearerAuth
+// @Param id path integer true "Positive monitor ID"
+// @Success 204 "Monitor deleted; no response body"
+// @Failure 400 {object} apiError "invalid_request"
+// @Failure 401 {object} apiError "invalid_token"
+// @Failure 403 {object} apiError "origin_not_allowed"
+// @Failure 404 {object} apiError "monitor_not_found"
+// @Failure 500 {object} apiError "internal_error"
+// @Router /api/monitors/{id} [delete]
+func (h *handler) delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.authenticate(w, r)
+	if !ok {
+		return
+	}
+	id, ok := readID(w, r)
+	if !ok {
+		return
+	}
+	result := h.db.WithContext(r.Context()).Where("id = ? AND user_id = ?", id, userID).Delete(&Monitor{})
+	if !mutationSucceeded(w, result) {
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func readID(w http.ResponseWriter, r *http.Request) (uint64, bool) {
+	id, err := strconv.ParseUint(r.PathValue("id"), 10, 64)
+	if err != nil || id == 0 {
+		writeError(
+			w,
+			http.StatusBadRequest,
+			"invalid_request",
+			"A positive monitor ID is required",
+		)
+		return 0, false
+	}
+	return id, true
+}
+
+func mutationSucceeded(w http.ResponseWriter, result *gorm.DB) bool {
+	if result.Error != nil {
+		writeError(
+			w,
+			http.StatusInternalServerError,
+			"internal_error",
+			"Internal server error",
+		)
+		return false
+	}
+	if result.RowsAffected == 0 {
+		writeError(
+			w,
+			http.StatusNotFound,
+			"monitor_not_found",
+			"Monitor not found",
+		)
+		return false
+	}
+	return true
 }
 
 func readInput(w http.ResponseWriter, r *http.Request) (Input, bool) {
