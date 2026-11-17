@@ -1,0 +1,3 @@
+interface:
+  display_name: "Документация роутов Swaggo"
+  short_description: "Обновление OpenAPI при изменении HTTP-маршрутов"
