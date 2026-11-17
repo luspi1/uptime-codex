@@ -45,3 +45,26 @@ func TestReadInput(t *testing.T) {
 		})
 	}
 }
+
+func TestMutationValidation(t *testing.T) {
+	h := NewHandler(nil, func(http.ResponseWriter, *http.Request) (uint64, bool) { return 1, true })
+	for _, method := range []string{"PUT", "DELETE"} {
+		for _, id := range []string{"0", "-1", "abc", "18446744073709551616"} {
+			t.Run(method+"/"+id, func(t *testing.T) {
+				w := httptest.NewRecorder()
+				r := httptest.NewRequest(method, "/api/monitors/"+id, strings.NewReader(`{}`))
+				h.ServeHTTP(w, r)
+				if w.Code != http.StatusBadRequest {
+					t.Fatalf("status = %d: %s", w.Code, w.Body.String())
+				}
+			})
+		}
+	}
+	for _, body := range []string{`{}`, `null`, `{"url":"bad","interval_minutes":5}`, `{"url":"https://example.com","interval_minutes":5,"user_id":2}`} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest("PUT", "/api/monitors/1", strings.NewReader(body)))
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("invalid update: %d %s", w.Code, w.Body.String())
+		}
+	}
+}

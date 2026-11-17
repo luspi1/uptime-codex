@@ -804,6 +804,181 @@
           "monitors"
         ]
       }
+    },
+    "/api/monitors/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "description": "Positive monitor ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Monitor deleted; no response body"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/monitors.apiError"
+                }
+              }
+            },
+            "description": "invalid_request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/monitors.apiError"
+                }
+              }
+            },
+            "description": "invalid_token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/monitors.apiError"
+                }
+              }
+            },
+            "description": "origin_not_allowed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/monitors.apiError"
+                }
+              }
+            },
+            "description": "monitor_not_found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/monitors.apiError"
+                }
+              }
+            },
+            "description": "internal_error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Delete monitor",
+        "tags": [
+          "monitors"
+        ]
+      },
+      "put": {
+        "parameters": [
+          {
+            "description": "Positive monitor ID",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/monitors.Input"
+              }
+            }
+          },
+          "description": "Both fields required; same validation as creation; unknown fields rejected",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/monitors.Monitor"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/monitors.apiError"
+                }
+              }
+            },
+            "description": "invalid_request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/monitors.apiError"
+                }
+              }
+            },
+            "description": "invalid_token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/monitors.apiError"
+                }
+              }
+            },
+            "description": "origin_not_allowed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/monitors.apiError"
+                }
+              }
+            },
+            "description": "monitor_not_found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/monitors.apiError"
+                }
+              }
+            },
+            "description": "internal_error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Update monitor",
+        "tags": [
+          "monitors"
+        ]
+      }
     }
   }
 }

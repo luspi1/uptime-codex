@@ -70,10 +70,12 @@ func NewHandler(db *gorm.DB, config Config) http.Handler {
 	handler.mux.HandleFunc("GET /api/auth/me", handler.me)
 	handler.mux.HandleFunc("PATCH /api/auth/me", handler.updateProfile)
 	handler.mux.HandleFunc("GET /api/auth/avatars/{filename}", handler.avatar)
-	handler.mux.Handle("/api/monitors", monitors.NewHandler(db, func(w http.ResponseWriter, r *http.Request) (uint64, bool) {
+	monitorHandler := monitors.NewHandler(db, func(w http.ResponseWriter, r *http.Request) (uint64, bool) {
 		user, ok := handler.currentUser(w, r)
 		return user.ID, ok
-	}))
+	})
+	handler.mux.Handle("/api/monitors", monitorHandler)
+	handler.mux.Handle("/api/monitors/", monitorHandler)
 	return handler
 }
 
@@ -91,7 +93,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		w.WriteHeader(http.StatusNoContent)
 		return
